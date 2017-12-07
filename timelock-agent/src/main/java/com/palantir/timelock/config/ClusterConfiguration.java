@@ -29,16 +29,10 @@ public interface ClusterConfiguration {
     /** To access the members of the cluster, use {@link #clusterMembers()} instead. */
     PartialServiceConfiguration cluster();
 
-    @JsonProperty("cluster-discovery-mode")
-    ClusterDiscoveryModes clusterDiscoveryMode();
-
-    @Value.Derived
-    default List<String> clusterMembers() {
-        return clusterDiscoveryMode().getClusterMembers(this);
-    }
-
     @JsonProperty("local-server")
     String localServer();
+
+    List<String> clusterMembers();
 
     @Value.Check
     default void check() {

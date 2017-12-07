@@ -17,12 +17,14 @@
 package com.palantir.timelock.config;
 
 
+import java.util.List;
+
 import org.immutables.value.Value;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+/** Generates cluster membership based upon pre-populated values. */
 @Value.Immutable
 @JsonSerialize(as = ImmutableDefaultClusterConfiguration.class)
 @JsonDeserialize(as = ImmutableDefaultClusterConfiguration.class)
@@ -31,9 +33,7 @@ public interface DefaultClusterConfiguration extends ClusterConfiguration {
     String TYPE = "default";
 
     @Override
-    @JsonProperty("cluster-discovery-mode")
-    @Value.Default
-    default ClusterDiscoveryModes clusterDiscoveryMode() {
-        return ClusterDiscoveryModes.PREPOPULATED;
+    default List<String> clusterMembers() {
+        return cluster().uris();
     }
 }

@@ -19,6 +19,7 @@ package com.palantir.timelock.utils;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -27,20 +28,36 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.palantir.logsafe.SafeArg;
 
 public final class KubernetesHostnames {
 
+    public static final KubernetesHostnames INSTANCE = new KubernetesHostnames(() -> {
+        try {
+            return InetAddress.getLocalHost().getCanonicalHostName();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+    });
+
     private static final Logger log = LoggerFactory.getLogger(KubernetesHostnames.class);
     private static final String POD_HOSTNAME_TEMPLATE = "%s-%d.%s.%s";
+
+    private final Supplier<String> currentHostnameSupplier;
 
     /** The pattern for hostnames when running in a k8s statefulset. */
     private static final Pattern POD_HOSTNAME_TEMPLATE_REGEX = Pattern.compile(
             "(?<service>[a-z0-9\\-.]+)-(?<podId>\\d+)\\.\\k<service>"
                     + "\\.(?<namespace>[a-z0-9\\-.]+)\\.svc\\.cluster\\.local");
 
-    public static final String getCurrentHostname() {
+    @VisibleForTesting
+    KubernetesHostnames(Supplier<String> currentHostnameSupplier) {
+        this.currentHostnameSupplier = currentHostnameSupplier;
+    }
+
+    public final String getCurrentHostname() {
         Matcher matcher = getHostnameComponents();
         return String.format(
                 POD_HOSTNAME_TEMPLATE,
@@ -50,7 +67,7 @@ public final class KubernetesHostnames {
                 matcher.group("namespace"));
     }
 
-    public static final List<String> getClusterMembers(int expectedClusterSize) {
+    public final List<String> getClusterMembers(int expectedClusterSize) {
         Matcher podTemplateMatcher = getHostnameComponents();
 
         int ourPodId = Integer.parseInt(podTemplateMatcher.group("podId"));
@@ -65,29 +82,17 @@ public final class KubernetesHostnames {
                 .collect(Collectors.toList());
     }
 
-    private static String getPodHostname(String serviceName, int podId, String namespace) {
+    private String getPodHostname(String serviceName, int podId, String namespace) {
         return String.format(POD_HOSTNAME_TEMPLATE, serviceName, podId, serviceName, namespace);
     }
 
-    private static Matcher getHostnameComponents() {
-        String canonicalHostName;
-        try {
-            canonicalHostName = InetAddress.getLocalHost().getCanonicalHostName();
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
-//        canonicalHostName = "svc-47775-2.svc-47775.rubix-skykube.svc.cluster.local";
+    private Matcher getHostnameComponents() {
+        String canonicalHostName = currentHostnameSupplier.get();
         log.info("Using hostname.", SafeArg.of("hostname", canonicalHostName));
         Matcher matcher = POD_HOSTNAME_TEMPLATE_REGEX.matcher(canonicalHostName);
         Preconditions.checkState(matcher.matches(), "Not running in a k8s stateful set.");
         log.info("Hostname matcher results.", SafeArg.of("matcher", matcher));
         return matcher;
-    }
-
-    public static void main(String[] args) {
-        Matcher hostnameComponents = getHostnameComponents();
-        System.out.println(hostnameComponents);
-        System.out.println(hostnameComponents.groupCount() + hostnameComponents.group("podId"));
     }
 
 }

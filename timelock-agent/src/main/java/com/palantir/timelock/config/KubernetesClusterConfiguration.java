@@ -16,6 +16,9 @@
 
 package com.palantir.timelock.config;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.immutables.value.Value;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,29 +26,43 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.palantir.timelock.utils.KubernetesHostnames;
 
+/**
+ * Generates the current hostname, and those of the expected members of the cluster if the server is being executed
+ * within a Kubernetes stateful set.
+ */
 @Value.Immutable
 @JsonSerialize(as = ImmutableKubernetesClusterConfiguration.class)
 @JsonDeserialize(as = ImmutableKubernetesClusterConfiguration.class)
 public interface KubernetesClusterConfiguration extends ClusterConfiguration {
+
     String TYPE = "kubernetes";
 
+    /** The number of members expected to join the cluster. */
     @JsonProperty("expected-cluster-size")
-    Integer expectedClusterSize();
+    int expectedClusterSize();
+
+    @JsonProperty("port")
+    int port();
+
+    /**
+     * The path to the api uri.
+     * <p>
+     * Used when generating the uris for the members of the cluster.
+     */
+    @JsonProperty("path")
+    String path();
 
     @Override
-    @JsonProperty("cluster-discovery-mode")
-    @Value.Default
-    default ClusterDiscoveryModes clusterDiscoveryMode() {
-        return ClusterDiscoveryModes.KUBERNETES;
+    default List<String> clusterMembers() {
+        return KubernetesHostnames.INSTANCE.getClusterMembers(expectedClusterSize())
+                .stream()
+                .map(hostname -> String.format("%s:%s%s", hostname, port(), path()))
+                .collect(Collectors.toList());
     }
 
     @Override
     default String localServer() {
-        return String.format("%s:%s", KubernetesHostnames.getCurrentHostname(), nonHostnameComponent());
+        return String.format("%s:%s%s", KubernetesHostnames.INSTANCE.getCurrentHostname(), port(), path());
     }
-
-    /* "port/context/path/to/api/endpoint" */
-    @JsonProperty("non-hostname-component")
-    String nonHostnameComponent();
 
 }

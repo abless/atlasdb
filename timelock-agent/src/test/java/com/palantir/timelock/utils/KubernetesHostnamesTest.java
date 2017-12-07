@@ -16,16 +16,52 @@
 
 package com.palantir.timelock.utils;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 public class KubernetesHostnamesTest {
 
+    private static final KubernetesHostnames NON_K8S_INSTANCE = new KubernetesHostnames(() -> "fake-url");
+    private static final KubernetesHostnames K8S_INSTANCE =
+            new KubernetesHostnames(() -> "svc-47775-2.svc-47775.rubix-skykube.svc.cluster.local");
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
+
     @Test
-    public void getCurrentHostname() throws Exception {
+    public void getCurrentHostname_not_k8s() throws Exception {
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage("Not running in a k8s stateful set.");
+        NON_K8S_INSTANCE.getCurrentHostname();
     }
 
     @Test
-    public void getClusterMembers() throws Exception {
+    public void getCurrentHostname_k8s() throws Exception {
+        assertThat(K8S_INSTANCE.getCurrentHostname()).isEqualTo("svc-47775-2.svc-47775.rubix-skykube");
+    }
+
+    @Test
+    public void getClusterMembers_not_k8s() throws Exception {
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage("Not running in a k8s stateful set.");
+        NON_K8S_INSTANCE.getClusterMembers(4);
+    }
+
+    @Test
+    public void getClusterMembers_k8s() throws Exception {
+        assertThat(K8S_INSTANCE.getClusterMembers(3)).containsOnly(
+                "svc-47775-0.svc-47775.rubix-skykube",
+                "svc-47775-1.svc-47775.rubix-skykube",
+                "svc-47775-2.svc-47775.rubix-skykube");
+    }
+
+    @Test
+    public void getClusterMembers_k8s_incorrectCount() throws Exception {
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage("Current Pod ID 2 indicates a cluster size greater than the expected 2.");
+        K8S_INSTANCE.getClusterMembers(2);
     }
 
 }

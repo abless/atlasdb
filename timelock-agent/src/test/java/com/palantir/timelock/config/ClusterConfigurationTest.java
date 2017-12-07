@@ -31,13 +31,13 @@ public class ClusterConfigurationTest {
 
     @Test
     public void shouldThrowIfLocalServerNotSpecified() {
-        assertThatThrownBy(ImmutableClusterConfiguration.builder()::build)
+        assertThatThrownBy(ImmutableDefaultClusterConfiguration.builder()::build)
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     public void shouldThrowIfNoServersSpecified() {
-        assertThatThrownBy(ImmutableClusterConfiguration.builder()
+        assertThatThrownBy(ImmutableDefaultClusterConfiguration.builder()
                 .localServer(ADDRESS_1)
                 ::build)
                 .isInstanceOf(IllegalStateException.class);
@@ -45,7 +45,7 @@ public class ClusterConfigurationTest {
 
     @Test
     public void shouldThrowIfLocalServerNotInServers() {
-        assertThatThrownBy(ImmutableClusterConfiguration.builder()
+        assertThatThrownBy(ImmutableDefaultClusterConfiguration.builder()
                 .localServer(ADDRESS_1)
                 .cluster(PartialServiceConfiguration.of(ImmutableList.of(ADDRESS_2), Optional.empty()))
                 ::build)

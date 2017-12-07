@@ -4,26 +4,45 @@
 
 package com.palantir.timelock.config;
 
+import java.util.List;
+
 import org.immutables.value.Value;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Preconditions;
 import com.palantir.remoting.api.config.service.PartialServiceConfiguration;
 
-@JsonDeserialize(as = ImmutableClusterConfiguration.class)
-@JsonSerialize(as = ImmutableClusterConfiguration.class)
-@Value.Immutable
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "type",
+        defaultImpl = DefaultClusterConfiguration.class)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = DefaultClusterConfiguration.class,
+                name = DefaultClusterConfiguration.TYPE),
+        @JsonSubTypes.Type(value = KubernetesClusterConfiguration.class,
+                name = KubernetesClusterConfiguration.TYPE)})
 public interface ClusterConfiguration {
+
+    /** To access the members of the cluster, use {@link #clusterMembers()} instead. */
     PartialServiceConfiguration cluster();
+
+    @JsonProperty("cluster-discovery-mode")
+    ClusterDiscoveryModes clusterDiscoveryMode();
+
+    @Value.Derived
+    default List<String> clusterMembers() {
+        return clusterDiscoveryMode().getClusterMembers(this);
+    }
 
     @JsonProperty("local-server")
     String localServer();
 
     @Value.Check
     default void check() {
-        Preconditions.checkState(cluster().uris().contains(localServer()),
-                "The localServer '%s' must be included in the server entries: %s.", localServer(), cluster().uris());
+        Preconditions.checkState(clusterMembers().contains(localServer()),
+                "The localServer '%s' must be included in the server entries: %s.", localServer(), clusterMembers());
     }
 }

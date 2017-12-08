@@ -57,7 +57,7 @@ public final class KubernetesHostnames {
         this.currentHostnameSupplier = currentHostnameSupplier;
     }
 
-    public final String getCurrentHostname() {
+    public String getCurrentHostname() {
         Matcher matcher = getHostnameComponents();
         return String.format(
                 POD_HOSTNAME_TEMPLATE,
@@ -67,7 +67,7 @@ public final class KubernetesHostnames {
                 matcher.group("namespace"));
     }
 
-    public final List<String> getClusterMembers(int expectedClusterSize) {
+    public List<String> getClusterMembers(int expectedClusterSize) {
         Matcher podTemplateMatcher = getHostnameComponents();
 
         int ourPodId = Integer.parseInt(podTemplateMatcher.group("podId"));
